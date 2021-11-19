@@ -22,7 +22,7 @@ namespace Zcg.Exploits.Local
         }
         static void Main(string[] args)
         {
-            Console.WriteLine("Exploit for EfsPotato(MS-EFSR EfsRpcOpenFileRaw with SeImpersonatePrivilege local privalege escalation vulnerability).");
+            Console.WriteLine("Exploit for EfsPotato(MS-EFSR EfsRpcEncryptFileSrv with SeImpersonatePrivilege local privalege escalation vulnerability).");
             Console.WriteLine("Part of GMH's fuck Tools, Code By zcgonvh.");
             Console.WriteLine("CVE-2021-36942 patch bypass (EfsRpcEncryptFileSrv method) + alternative pipes support by Pablo Martinez (@xassiz) [www.blackarrow.net]\r\n");
             if (args.Length < 1)
