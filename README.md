@@ -1,4 +1,4 @@
-## Exploit for EfsPotato(MS-EFSR EfsRpcOpenFileRaw with SeImpersonatePrivilege local privalege escalation vulnerability).
+## Exploit for EfsPotato(MS-EFSR EfsRpcEncryptFileSrv with SeImpersonatePrivilege local privalege escalation vulnerability).
 
 ### build
 
@@ -12,7 +12,8 @@
 
 ### usage
 
-	EfsPotato <command>
+	usage: EfsPotato <cmd> [pipe]
+  	  pipe -> lsarpc|efsrpc|samr|lsass|netlogon (default=lsarpc)
 
 ![](https://raw.githubusercontent.com/zcgonvh/EfsPotato/master/test.png)
  
