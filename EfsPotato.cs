@@ -426,7 +426,7 @@ namespace Zcg.Exploits.Local
                 return IntPtr.Zero;
             }
 
-            status = RpcBindingSetAuthInfo(binding, server, /* RPC_C_AUTHN_LEVEL_PKT_PRIVACY */ 6, /* RPC_C_AUTHN_GSS_NEGOTIATE */ 9, IntPtr.Zero, AuthzSvc: 16);
+            status = RpcBindingSetAuthInfo(binding, server, /* RPC_C_AUTHN_LEVEL_PKT_PRIVACY */ 6, /* RPC_C_AUTHN_GSS_NEGOTIATE */ 9, IntPtr.Zero, 16);
             if (status != 0)
             {
                 Console.WriteLine("[x] RpcBindingSetAuthInfo failed with status 0x" + status.ToString("x"));
